@@ -287,13 +287,18 @@ nav{padding:6px 0;flex:1;}
 .att-table th{padding:5px 8px;background:var(--bg3);border:1px solid var(--line);color:var(--text3);font-weight:400;white-space:nowrap;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.06em;}
 .att-table td{padding:4px 8px;border:1px solid var(--line);text-align:center;white-space:nowrap;}
 .att-table tr:hover td{background:var(--bg3);}
+/* 名前列固定 */
+.att-table .att-name-th{position:sticky;left:0;z-index:3;background:var(--bg3);}
+.att-table .att-name-td{position:sticky;left:0;z-index:2;background:var(--bg2);}
+.att-table tr:hover .att-name-td{background:var(--bg3);}
 .att-o{color:var(--gt);}
 .att-x{color:var(--rt);}
 .att-name{text-align:left!important;font-size:11px;}
-.att-wrap{overflow-x:auto;margin-top:6px;display:flex;justify-content:flex-start;}
+.att-wrap{overflow-x:auto;overflow-y:visible;margin-top:6px;display:flex;justify-content:flex-start;}
 
 /* tips */
 .tg{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px;}
+.tuc-spacer{} /* グリッドの空白セル */
 @media(max-width:900px){.tg{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:720px){.tg{grid-template-columns:1fr;}}
 .tuc{background:var(--cdbg);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0;}
@@ -585,6 +590,9 @@ nav{padding:6px 0;flex:1;}
     <div class="settings-body" id="vcap-modal-body">
       <p style="font-size:11px;color:var(--text3);margin-bottom:10px;">公演に紐づいた会場ごとにキャパ数を設定します。</p>
       <div id="vcap-modal-rows"></div>
+    </div>
+    <div style="padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;">
+      <button class="btn btn-a" onclick="closeVcapModal()">確定</button>
     </div>
   </div>
 </div>
@@ -1117,7 +1125,35 @@ function rSongs(){
   const el=document.getElementById('songs-list');
   if(!keys.length){el.innerHTML=`<div class="es">${q||sF!=='all'?'該当する楽曲がありません':'＋ 公演を追加してください'}</div>`;return;}
   el.innerHTML=keys.map(k=>{
-    const e=m[k],sorted=e.entries;
+    const e=m[k];
+    // オリジナルのみ表示時は、曲に紐づくユニットが出演した公演のみ表示
+    let sorted=e.entries;
+    if(sF==='orig'){
+      // この曲のオリジナル演奏で使われたユニットIDを収集
+      const songUids=new Set(
+        e.entries.filter(s=>s.unit==='orig').flatMap(s=>(s.units||[]).filter(u=>u!=='all'&&u!=='free'&&u!=='solo'))
+      );
+      // ライブラリ登録ユニットも参照
+      const libE2=libLook(e.name);
+      (libE2?.units||[]).filter(u=>u!=='all'&&u!=='free'&&u!=='solo').forEach(u=>songUids.add(u));
+      // solo/free/allのみの場合は freeU（キャラ名）も参照
+      const songFreeU=new Set(
+        e.entries.filter(s=>s.unit==='orig'&&s.freeU).map(s=>s.freeU)
+      );
+      sorted=e.entries.filter(s=>{
+        const con=cons.find(x=>x.id===s._cid);if(!con)return false;
+        const cp=con.castPresent||{};
+        // songUids が空（all/free/solo のみ）→ freeU 一致するキャストが出演しているか
+        if(songUids.size===0){
+          return songFreeU.size===0||[...songFreeU].some(ch=>{
+            const mbr=findMbrAll(ch);return mbr?!!cp[mbr.ch]:!!cp[ch];
+          });
+        }
+        // songUids に属するメンバーが castPresent にいれば表示
+        return MBR.some(mbr=>songUids.has(mbr.u)&&!!cp[mbr.ch]);
+      });
+      // 絞った結果が0件の場合もカードは表示（未披露扱い）
+    }
     const d1=sorted.length?dd(sorted[0]._cd):null;
     const usArr=[...new Set(sorted.filter(s=>s.unit==='orig').flatMap(s=>(s.units||[]).map(uid=>{if(uid==='free')return s.freeU||'';const u=UNITS.find(x=>x.id===uid);return u?u.short:'';}).filter(Boolean)))];
     // library lookup for unit if not in setlist
@@ -1131,7 +1167,7 @@ function rSongs(){
       const dispName=s._csn||s._cn;
       // tags from the concert
       const con=cons.find(x=>x.id===s._cid);
-      const tagBadges=con&&con.tags?con.tags.split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span style="font-size:8px;padding:0 4px;border-radius:999px;background:var(--bg4);color:var(--text3);border:1px solid var(--line2);font-family:'DM Mono',monospace;">${t}</span>`).join(''):'';
+      const tagBadges=con&&con.tags?parseTags(con.tags).map(t=>`<span style="font-size:8px;padding:0 4px;border-radius:999px;background:var(--bg4);color:var(--text3);border:1px solid var(--line2);font-family:'DM Mono',monospace;">${t}</span>`).join(''):'';
       return`<span class="ctag" onclick="gCon('${s._cid}')">${hl(dispName,q)}${tagBadges}${tn}${mn}<span class="ctd">${s._cd}</span><span class="db ${dbc(d2)}" style="font-size:9px;padding:1px 4px;">${dbl(d2)}</span></span>`;
     }).join('');
     const unperfNote=sorted.length===0?`<span style="font-size:10px;color:var(--text3);font-style:italic;">未披露</span>`:'';
@@ -1173,17 +1209,11 @@ function parseTags(tagStr){
   return res;
 }
 // Anniversary判定
-// 対象: "anniv" 文字列 / 序数(1st,2nd,3rd,4th...) を name・shortName・tags いずれかに含む
+// 対象: shortName に序数(1st,2nd,3rd,4th...) を含むもののみ
 const ORDINAL_RE=/\d+(?:st|nd|rd|th)/i;
 function isAnniv(c){
-  const nm =(c.name     ||'').toLowerCase();
-  const sn =(c.shortName||'').toLowerCase();
-  const tg =(c.tags     ||'').toLowerCase();
-  // "anniv" を含む
-  if(nm.includes('anniv')||sn.includes('anniv')||tg.includes('anniv'))return true;
-  // 序数（1st / 2nd / 3rd / 4th … 単独でもOK）を含む
-  if(ORDINAL_RE.test(nm)||ORDINAL_RE.test(sn)||ORDINAL_RE.test(tg))return true;
-  return false;
+  const sn=(c.shortName||'').toLowerCase();
+  return ORDINAL_RE.test(sn);
 }
 function rAtt(){
   let castCons=cons.filter(c=>c.perfMode==='cast');
@@ -1216,7 +1246,7 @@ function rAtt(){
   const nameW=`${Math.max(5,...ATT_MBR.map(m=>(showCast?m.ca:m.ch).length))*0.58+0.5}em`;
 
   // 3-2: ヘッダーに「短縮名」を使用。序数含む短縮名もAnniversary判定済み
-  let groupRow=`<th style="min-width:${nameW};text-align:left;padding:4px 8px;font-size:10px;vertical-align:middle;white-space:nowrap;" rowspan="2">名前</th>`;
+  let groupRow=`<th class="att-name-th" style="min-width:${nameW};text-align:left;padding:4px 8px;font-size:10px;vertical-align:middle;white-space:nowrap;" rowspan="2">名前</th>`;
   groups.forEach(g=>{
     const span=g.cons.length;
     const borderL='border-left:2px solid var(--line2);';
@@ -1248,7 +1278,7 @@ function rAtt(){
         :`<td style="${borderL}width:${colW};min-width:${colW};"></td>`;
     });
     const nm=showCast?m.ca:m.ch;
-    return`<tr><td style="min-width:${nameW};white-space:nowrap;padding:4px 8px;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${m.c};margin-right:4px;vertical-align:middle;flex-shrink:0;"></span>${nm}</td>${cells}</tr>`;
+    return`<tr><td class="att-name-td" style="min-width:${nameW};white-space:nowrap;padding:4px 8px;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${m.c};margin-right:4px;vertical-align:middle;flex-shrink:0;"></span>${nm}</td>${cells}</tr>`;
   }).join('');
 
   el.innerHTML=`<table class="att-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
@@ -1413,15 +1443,37 @@ function rStatChips(){
 }
 function rUChips(cid,sel){
   const el=document.getElementById(cid);if(!el)return;
-  // ライブラリ選択: 通常ユニット + all + other + リフラク（独立）
-  const mainUnitIds=UORDER.concat(['all','other']);
-  let libH=mainUnitIds.map(uid=>{const u=UNITS.find(x=>x.id===uid);if(!u)return'';const s=sel.includes(uid);return`<button class="uc${s?' on':''}" style="${s?'background:'+u.color+'33;border-color:'+u.color+'88;color:'+u.color+';':''}" onclick="tgLibU('${uid}',this)">${u.short}</button>`;}).join('');
+  // ライブラリ選択: 通常ユニット + all + other + solo + リフラク（独立）
+  const mainUnitIds=UORDER.concat(['all','other','solo']);
+  let libH=mainUnitIds.map(uid=>{
+    const u=UNITS.find(x=>x.id===uid);if(!u)return'';
+    const s=sel.includes(uid);
+    return`<button class="uc${s?' on':''}" style="${s?'background:'+u.color+'33;border-color:'+u.color+'88;color:'+u.color+';':''}" onclick="tgLibU('${uid}',this)">${u.short}</button>`;
+  }).join('');
+  // ソロ選択時: メンバー選択ドロップダウンを表示
+  const hasSolo=sel.includes('solo');
+  if(hasSolo){
+    const curMbr=(typeof libSoloMbr!=='undefined')?libSoloMbr:'';
+    const opts=MBR.filter(m=>m.u!=='other').map(m=>`<option value="${m.ch}"${curMbr===m.ch?' selected':''}>${showCast?m.ca:m.ch}</option>`).join('');
+    libH+=`<select class="ssel" id="lib-solo-sel" onchange="libSoloMbr=this.value;" style="margin-left:4px;max-width:120px;"><option value="">メンバー選択</option>${opts}</select>`;
+  }
   // リフラク区切り
   libH+=`<span style="display:inline-flex;align-items:center;font-size:10px;color:var(--text3);margin:0 4px;">/</span>`;
   libH+=REFRAC_IDS.map(uid=>{const u=rfUnit(uid);if(!u)return'';const s=sel.includes(uid);return`<button class="uc${s?' on':''}" style="${s?'background:'+u.color+'33;border-color:'+u.color+'88;color:'+u.color+';':''}" onclick="tgLibU('${uid}',this)">${u.short}</button>`;}).join('');
   el.innerHTML=libH;
 }
-function tgLibU(uid,btn){const i=libUSel.indexOf(uid);if(i>=0)libUSel.splice(i,1);else libUSel.push(uid);const s=libUSel.includes(uid),u=UNITS.find(x=>x.id===uid);btn.classList.toggle('on',s);if(u){btn.style.background=s?u.color+'33':'';btn.style.borderColor=s?u.color+'88':'';btn.style.color=s?u.color:'';}}
+let libSoloMbr='';
+function tgLibU(uid,btn){
+  const i=libUSel.indexOf(uid);
+  if(i>=0)libUSel.splice(i,1);else libUSel.push(uid);
+  const s=libUSel.includes(uid);
+  // solo は再描画してドロップダウン表示切替
+  if(uid==='solo'){rUChips('lib-uc',libUSel);return;}
+  // リフラク: rfUnit で色取得
+  const u=UNITS.find(x=>x.id===uid)||rfUnit(uid);
+  btn.classList.toggle('on',s);
+  if(u){btn.style.background=s?u.color+'33':'';btn.style.borderColor=s?u.color+'88':'';btn.style.color=s?u.color:'';}
+}
 function libSelAll(){libUSel=UORDER.concat(['all','other']).concat(REFRAC_IDS);rUChips('lib-uc',libUSel);}
 function libSelNone(){libUSel=[];rUChips('lib-uc',libUSel);}
 function rLib(){
@@ -1431,7 +1483,16 @@ function rLib(){
   if(q)lst=lst.filter(e=>fz(e.name,q)||(e.cd&&fz(e.cd,q))||e.units.some(uid=>{const u=UNITS.find(x=>x.id===uid);return u&&(fz(u.name,q)||fz(u.short,q)||fz(e.name,q));}));
   if(!lst.length){el.innerHTML='<div class="es">楽曲がありません</div>';return;}
   el.innerHTML=lst.map(e=>{
-    const us=e.units.map(uid=>{const u=UNITS.find(x=>x.id===uid);return u?`<span style="color:${u.color};font-size:10px;">${u.short}</span>`:uid;}).join(' ');
+    const us=e.units.map(uid=>{
+      if(uid==='solo'){
+        const mbr=e.freeU?findMbrAll(e.freeU):null;
+        const nm=mbr?(showCast?mbr.ca:mbr.ch):(e.freeU||'ソロ');
+        const c=mbr?mbr.c:'#888890';
+        return`<span style="color:${c};font-size:10px;">ソロ(${nm})</span>`;
+      }
+      const u=UNITS.find(x=>x.id===uid)||rfUnit(uid);
+      return u?`<span style="color:${u.color};font-size:10px;">${u.short}</span>`:'';
+    }).filter(Boolean).join(' ');
     const dn=e.name.replace(/"/g,'&quot;');
     // check if song has any live performances
     const inSetlist=Object.keys(bSM()).includes(n(e.name));
@@ -1456,7 +1517,10 @@ function startLibEdit(id){
   document.getElementById('lib-n').value=e.name;
   document.getElementById('lib-cd').value=e.cd||'';
   libUSel=[...(e.units||[])];
+  libSoloMbr=e.freeU||'';
   rUChips('lib-uc',libUSel);
+  // ソロ選択後にドロップダウンへ freeU を反映
+  setTimeout(()=>{const sel=document.getElementById('lib-solo-sel');if(sel)sel.value=libSoloMbr;},0);
   document.getElementById('lib-msg').className='fm fok';
   document.getElementById('lib-msg').textContent='編集中: '+e.name;
   document.getElementById('lib-n').focus();
@@ -1464,18 +1528,32 @@ function startLibEdit(id){
 function saveLib(){
   const nm=document.getElementById('lib-n').value.trim(),msg=document.getElementById('lib-msg');
   if(!nm){msg.className='fm fer';msg.textContent='楽曲名は必須です';return;}
+  // ソロ選択時は libSoloMbr を freeU として保存
+  const hasSolo=libUSel.includes('solo');
+  const soloMbr=hasSolo?(document.getElementById('lib-solo-sel')?.value||libSoloMbr||''):'';
+  const entry={
+    id:editingLibId||Date.now().toString(),
+    name:nm,
+    cd:document.getElementById('lib-cd').value.trim(),
+    units:[...libUSel],
+    freeU:soloMbr,
+  };
   if(editingLibId){
     const idx=lib.findIndex(e=>e.id===editingLibId);
-    if(idx>=0)lib[idx]={...lib[idx],name:nm,cd:document.getElementById('lib-cd').value.trim(),units:[...libUSel]};
+    if(idx>=0)lib[idx]=entry;
     editingLibId=null;
-  }else{
-    lib.push({id:Date.now().toString(),name:nm,cd:document.getElementById('lib-cd').value.trim(),units:[...libUSel]});
+    msg.className='fm fok';msg.textContent='更新しました';
+  } else {
+    lib.push(entry);
+    msg.className='fm fok';msg.textContent='追加しました';
   }
   saveL();
-  document.getElementById('lib-n').value='';document.getElementById('lib-cd').value='';
-  libUSel=[];rUChips('lib-uc',libUSel);
-  msg.className='fm fok';msg.textContent='保存しました';
-  setTimeout(()=>msg.textContent='',1200);updB();rLib();
+  document.getElementById('lib-n').value='';
+  document.getElementById('lib-cd').value='';
+  libUSel=[];libSoloMbr='';
+  rUChips('lib-uc',libUSel);
+  setTimeout(()=>msg.textContent='',1200);
+  updB();rLib();
 }
 function delLib(id){if(!confirm('削除しますか？'))return;const _li=lib.find(e=>e.id===id);if(_li)_pushHist('lib',{..._li});lib=lib.filter(e=>e.id!==id);if(editingLibId===id){editingLibId=null;document.getElementById('lib-msg').textContent='';}saveL();updB();rLib();}
 
@@ -1535,27 +1613,39 @@ function schedToCon(schId){
 // TIPS
 // ═══════════════════════════════════════════
 function rTips(){
-  // unit member blocks (UORDER) — include 'other' for Tips only
-  // 通常ユニット + その他
-  const mainOrder=[...UORDER,'other'];
-  const mainBlocks=mainOrder.map(uid=>{
+  // ユニットカードを1枚生成するヘルパー
+  function ucBlock(uid){
     const u=UNITS.find(x=>x.id===uid);if(!u)return'';
     const ms=MBR.filter(m=>m.u===uid);
     const isOther=uid==='other';
     const dispColor=uid==='illumi'?'#fff68d':u.color;
     return`<div class="tuc${isOther?' tuc-other':''}"><div class="tuh" style="${isOther?'background:#ffffff;border-bottom:2px solid rgba(0,0,0,.18);':'background:'+u.color+'22;border-bottom:2px solid '+u.color+'55;'}"><span style="color:${isOther?'#000000':u.color}">${u.name}</span><span class="tcode" style="margin-left:auto;">${dispColor}</span></div>${ms.map(m=>`<div class="tmr"><div class="tdot" style="background:${m.c}"></div><div style="flex:1;min-width:0;"><div class="tm">${showCast?m.ca:m.ch}</div><div class="tsub">${showCast?m.ch:m.ca}</div></div><span class="tcode">${m.c}</span></div>`).join('')}</div>`;
-  }).join('');
-  // リフラク（独立実装）
-  const refracBlocks=REFRAC_IDS.map(uid=>{
+  }
+  function rfBlock(uid){
     const u=rfUnit(uid);if(!u)return'';
     const ms=rfMembers(uid);
     return`<div class="tuc tuc-refrac"><div class="tuh" style="background:${u.color}22;border-bottom:2px solid ${u.color}55;"><span style="color:${u.color}">${u.name}</span><span class="tcode" style="margin-left:auto;">${u.color}</span></div>${ms.map(m=>`<div class="tmr"><div class="tdot" style="background:${m.c}"></div><div style="flex:1;min-width:0;"><div class="tm">${showCast?m.ca:m.ch}</div><div class="tsub">${showCast?m.ch:m.ca}</div></div><span class="tcode">${m.c}</span></div>`).join('')}</div>`;
-  }).join('');
-  const unitBlocks=mainBlocks+refracBlocks;
-  // シャイニーカラーズ block — rendered as a normal grid item (no member list)
+  }
+  // シャイニーカラーズ（メンバーリストなし）
   const shinyu=UNITS.find(x=>x.id==='shinyc');
   const shinycBlock=shinyu?`<div class="tuc"><div class="tuh" style="background:${shinyu.color}22;border-bottom:2px solid ${shinyu.color}55;"><span style="color:${shinyu.color}">${shinyu.name}</span><span class="tcode" style="margin-left:auto;">${shinyu.color}</span></div></div>`:'';
-  document.getElementById('tg').innerHTML=unitBlocks+shinycBlock;
+  // スペーサー
+  const sp='<div class="tuc-spacer"></div>';
+
+  // 並び順:
+  // 行1: イルミネ・アンティーカ・ホクス・アルスト
+  // 行2: ストレイ・ノクチル・セイズ・コメティック
+  // 行3: その他・[空]・[空]・シャイニーカラーズ
+  // 行4: Cutie Finder・Fumage・Sonic Heart・∑Desire
+  // 行5: ふたりトラベラー・彼岸流
+  const html=
+    ucBlock('illumi')+ucBlock('antika')+ucBlock('hocus')+ucBlock('alst')+
+    ucBlock('stray')+ucBlock('noctil')+ucBlock('seize')+ucBlock('comet')+
+    ucBlock('other')+shinycBlock+sp+sp+
+    rfBlock('cutie')+rfBlock('fumage')+rfBlock('sonic')+rfBlock('desire')+
+    rfBlock('futari')+rfBlock('higan');
+
+  document.getElementById('tg').innerHTML=html;
 }
 
 // ═══════════════════════════════════════════
@@ -1573,7 +1663,7 @@ function rCP(){
 }
 function tgCP(k,col,btn){cPres[k]=!cPres[k];btn.classList.toggle('p',cPres[k]);if(cPres[k]){btn.style.background=col;btn.style.color=cc(col);btn.querySelector('.ccdot').style.background='rgba(0,0,0,.3)';}else{btn.style.background='';btn.style.color='';btn.querySelector('.ccdot').style.background=col;}}
 function setCPM(m){cpMode=m;document.getElementById('cp-ch').classList.toggle('on',m==='chara');document.getElementById('cp-ca').classList.toggle('on',m==='cast');rCP();}
-function cpSelAll(v){MBR.forEach(m=>{cPres[m.ch]=v;});rCP();}
+function cpSelAll(v){MBR.filter(m=>m.u!=='other').forEach(m=>{cPres[m.ch]=v;});rCP();}
 function cpToggleUnit(uid){
   const ms=MBR.filter(m=>m.u===uid);const allOn=ms.every(m=>cPres[m.ch]);ms.forEach(m=>{cPres[m.ch]=!allOn;});rCP();}
 
