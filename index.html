@@ -1982,11 +1982,23 @@ let _fbListeners = {};   // key -> off関数
 let _ignoreNext = {};    // 自分の書き込みによるリスナー誤発火を抑制
 
 // Firebase設定をlocalStorageに保存・取得
-function _fbGetConfig(){
-  try{ const r=localStorage.getItem(FB_CONFIG_KEY); return r?JSON.parse(r):null; }catch(e){return null;}
-}
-function _fbSetConfig(cfg){
-  try{ localStorage.setItem(FB_CONFIG_KEY,JSON.stringify(cfg)); }catch(e){}
+function _fbGetConfig() {
+  const raw = localStorage.getItem('cw_fb_config');
+  if (!raw) return ""; 
+  try {
+    const c = JSON.parse(raw);
+    if (typeof c === 'object' && c !== null) {
+      // URL末尾のスラッシュを確実に除去
+      if (c.databaseURL) {
+        c.databaseURL = c.databaseURL.trim().replace(/\/+$/, "");
+      }
+      return c;
+    }
+    return "";
+  } catch (e) {
+    console.error("Config parse error:", e);
+    return "";
+  }
 }
 
 // Firebase初期化（compat SDK: window.firebase が存在）
@@ -2240,35 +2252,66 @@ function _finishInit(){
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
-(function(){
-  // saveトーストを注入
-  const toast=document.createElement('div');
-  toast.id='_save-toast';
-  toast.style.cssText='position:fixed;bottom:16px;right:16px;z-index:9999;padding:7px 14px;border-radius:8px;font-size:11px;font-family:"Noto Sans JP",sans-serif;font-weight:500;pointer-events:none;transition:opacity .4s;opacity:0;';
+(function() {
+  // 保存通知用トーストの作成
+  const toast = document.createElement('div');
+  toast.id = '_save-toast';
+  toast.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9999;padding:7px 14px;border-radius:8px;font-size:11px;font-family:"Noto Sans JP",sans-serif;font-weight:500;pointer-events:none;transition:opacity .4s;opacity:0;';
   document.body.appendChild(toast);
 
-  // 仮定義（ローカルモードまたはFirebaseへの上書き前）
-  window._lsGet=k=>{ try{return localStorage.getItem(k);}catch(e){return null;} };
-  window._lsSet=(k,v)=>{ try{localStorage.setItem(k,v);return true;}catch(e){return false;} };
-  window._saveHist=()=>{ try{_lsSet(HIST_KEY,JSON.stringify(delHist.slice(0,300)));}catch(e){} };
+  // localStorageのヘルパー定義
+  window._lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  window._lsSet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } };
 
   const cfg = _fbGetConfig();
-  if(cfg){
-    // 保存済み設定で自動接続
-    document.getElementById('fb-config-modal').style.display='none';
-    const ok = _fbInit(cfg);
-    if(ok){
-      _fbStartSync().catch(e=>{
-        console.error('Firebase sync error:',e);
-        _initLocalMode();
+
+  if (cfg && cfg.apiKey && cfg.databaseURL) {
+    // Firebaseモード
+    try {
+      firebase.initializeApp(cfg);
+      const db = firebase.database();
+      const dbRef = db.ref();
+
+      // Firebaseからのデータ取得
+      firebase.database().ref('.info/connected').on('value', (s) => {
+        if (s.val() === false) console.warn("Firebase: 切断中...");
       });
-    } else {
-      _initLocalMode();
+
+      db.ref().on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          if (data.cons) cons = data.cons.map(mgC);
+          if (data.schs) schs = data.schs;
+          if (data.delHist) delHist = data.delHist;
+        }
+        // 取得完了後に画面を表示
+        document.getElementById('fb-config-modal').style.display = 'none';
+        _finishInit();
+      }, (error) => {
+        console.error("Firebase Read Error:", error);
+        alert("Firebaseからのデータ読み込みに失敗しました。ルール設定を確認してください。");
+        _finishInit(); // エラーでも一応起動
+      });
+
+      // Firebase用保存関数の上書き
+      window._saveC = () => { db.ref('cons').set(cons.map(c => ({...c}))); };
+      window._saveS = () => { db.ref('schs').set(schs); };
+      window._saveHist = () => { db.ref('delHist').set(delHist.slice(0, 100)); };
+
+    } catch (e) {
+      console.error("Firebase Init Error:", e);
+      _finishInit();
     }
   } else {
-    // 初回: 設定モーダルを表示しつつ画面を初期化
-    document.getElementById('fb-config-modal').style.display='flex';
-    clrF(); rUChips('lib-uc',libUSel); rSongs(); updB();
+    // ローカルモード（Configがない場合）
+    document.getElementById('fb-config-modal').style.display = 'flex';
+    
+    // ローカル用保存関数の定義
+    window._saveC = () => { _lsSet('cw_v2', JSON.stringify(cons)); };
+    window._saveS = () => { _lsSet('cw_sched_v1', JSON.stringify(schs)); };
+    window._saveHist = () => { _lsSet('cw_hist', JSON.stringify(delHist)); };
+
+    _finishInit();
   }
 })();
 </script>
