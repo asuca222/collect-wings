@@ -552,7 +552,7 @@ nav{padding:6px 0;flex:1;}
         <!-- Right: cast panel -->
         <div class="cpanel" id="cppanel">
           <div class="cptitle">出演</div>
-          <div class="cmt"><button class="cmtb on" id="cp-ch" onclick="setCPM('chara')">キャラ</button><button class="cmtb" id="cp-ca" onclick="setCPM('cast')">キャスト</button></div>
+          <div class="cmt"><button class="cmtb on" id="cp-unit" onclick="setCPM('unit')">ユニット</button><button class="cmtb" id="cp-refrac" onclick="setCPM('refrac')">リフラク</button></div>
           <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
             <button class="btn btn-sm" onclick="cpSelAll(true)">全選択ON</button>
             <button class="btn btn-sm" onclick="cpSelAll(false)">全選択OFF</button>
@@ -610,20 +610,21 @@ nav{padding:6px 0;flex:1;}
 // ═══════════════════════════════════════════
 const UORDER=['illumi','antika','hocus','alst','stray','noctil','seize','comet'];
 // クロス・期間限定ユニット（出欠一覧には含めない）
-const REFRAC_IDS=['cutie','fumage','sonic','desire','futari','higan'];
+const REFRAC_IDS=['cutie','fumage','sonic','desire','futari','higan','nofilo'];
 
 // ═══════════════════════════════════════════
 // REFRAC — 既存ユニットと完全に切り離された独立実装
 // カラー等は今後設定予定（仮値で初期化）
 // ═══════════════════════════════════════════
 const REFRAC_UNITS=[
-  // id, name, short, color(仮) — 今後個別設定
-  {id:'cutie', name:"I'm a Cutie Finder",      short:'Cutie Finder',    color:'#e8607a'},
-  {id:'fumage',name:'Fumage',                   short:'Fumage',          color:'#7ec8c0'},
-  {id:'sonic', name:'Sonic Heart (and Signal)', short:'Sonic Heart',     color:'#3db8f0'},
-  {id:'desire',name:'∑ Desire',                 short:'∑ Desire',        color:'#9b6bcc'},
-  {id:'futari',name:'ザ・ふたりトラベラー',      short:'ふたりトラベラー',color:'#f7b731'},
-  {id:'higan', name:'彼岸流',                   short:'彼岸流',          color:'#6bbf7e'},
+  // id, name, short, add_short(公演を追加表示用), color(仮) — 今後個別設定
+  {id:'cutie', name:"I'm a Cutie Finder",      short:'Cutie Finder',    add_short:'アイキュー',    color:'#e8607a'},
+  {id:'fumage',name:'Fumage',                   short:'Fumage',          add_short:'Fumage',        color:'#7ec8c0'},
+  {id:'sonic', name:'Sonic Heart (and Signal)', short:'Sonic Heart',     add_short:'ソニハ',        color:'#3db8f0'},
+  {id:'desire',name:'∑ Desire',                 short:'∑ Desire',        add_short:'Σ desire',      color:'#9b6bcc'},
+  {id:'futari',name:'ザ・ふたりトラベラー',      short:'ふたりトラベラー',add_short:'たりら',        color:'#f7b731'},
+  {id:'higan', name:'彼岸流',                   short:'彼岸流',          add_short:'彼岸流',        color:'#6bbf7e'},
+  {id:'nofilo',name:'No 1 feel alone',           short:'ノフィロ',         add_short:'ノフィロ',      color:'#3b91c4'},
 ];
 const REFRAC_MBR=[
   // u=refrac unit id, ch=キャラ名, ca=キャスト名, c=カラー(仮)
@@ -651,6 +652,10 @@ const REFRAC_MBR=[
   {u:'higan', ch:'有栖川夏葉', ca:'涼本あきほ', c:'#90e667'},
   {u:'higan', ch:'桑山千雪',   ca:'芝崎典子',   c:'#fafafa'},
   {u:'higan', ch:'和泉愛依',   ca:'北原沙弥香', c:'#ff00ff'},
+  {u:'nofilo',ch:'三峰結華',   ca:'希水しお',   c:'#3b91c4'},
+  {u:'nofilo',ch:'杜野凛世',   ca:'丸岡和佳奈', c:'#89c3eb'},
+  {u:'nofilo',ch:'大崎甘奈',   ca:'黒木ほの香', c:'#f54275'},
+  {u:'nofilo',ch:'福丸小糸',   ca:'田嶌紗蘭',   c:'#7967c3'},
 ];
 // REFRAC検索ヘルパー（UNITS/MBRとは独立）
 function rfUnit(id){return REFRAC_UNITS.find(u=>u.id===id)||null;}
@@ -733,7 +738,7 @@ function mgS(s){let unit='orig';if(s.unit==='shuf'||s.unit==='shuffle'||s.isMain
 let eId=null,ePM='cast',ePK='orig';
 let eTabs=[],aTab=0;
 let cPres={},cpMode='chara',xrBU=[],eCostu={};
-let sF='all',cF='all',aF='all',sS='n',sSDir=1,showCast=false,showUnperf=false,libUSel=[];
+let sF='all',cF='all',aF='all',sS='n',sSDir=1,showCast=false,showUnperf=false,libUSel=[],refracMode=false;
 // sSDir: 1=default(desc for date/count, unit-order for name), -1=reversed
 let curTab='songs';
 let bulkDirty=false; // true when bulk textarea has content not yet imported
@@ -798,7 +803,7 @@ function sw(t){
   }
   clMob();rCur();
 }
-function rCur(){if(curTab==='songs')rSongs();else if(curTab==='cons')rCons();else if(curTab==='cast')rPP('cast');else if(curTab==='xr')rPP('xr');else if(curTab==='att')rAtt();else if(curTab==='lib')rLib();else if(curTab==='sched')rSched();else if(curTab==='tips')rTips();updB();}
+function rCur(){if(curTab==='songs')rSongs();else if(curTab==='cons')rCons();else if(curTab==='cast')rPP('cast');else if(curTab==='xr')rPP('xr');else if(curTab==='att')rAtt();else if(curTab==='lib')rLib();else if(curTab==='sched')rSched();else if(curTab==='tips')rTips();else if(curTab==='add')rCP();updB();}
 function updB(){document.getElementById('b-songs').textContent=Object.keys(bSM()).length;document.getElementById('b-cons').textContent=cons.length;document.getElementById('b-lib').textContent=lib.length;document.getElementById('b-sched').textContent=schs.length;}
 
 // ═══════════════════════════════════════════
@@ -1497,13 +1502,13 @@ function rTips(){
   // 行2: ストレイ・ノクチル・セイズ・コメティック
   // 行3: その他・[空]・[空]・シャイニーカラーズ
   // 行4: Cutie Finder・Fumage・Sonic Heart・∑Desire
-  // 行5: ふたりトラベラー・彼岸流
+  // 行5: ふたりトラベラー・彼岸流・ノフィロ
   const html=
     ucBlock('illumi')+ucBlock('antika')+ucBlock('hocus')+ucBlock('alst')+
     ucBlock('stray')+ucBlock('noctil')+ucBlock('seize')+ucBlock('comet')+
     ucBlock('other')+shinycBlock+sp+sp+
     rfBlock('cutie')+rfBlock('fumage')+rfBlock('sonic')+rfBlock('desire')+
-    rfBlock('futari')+rfBlock('higan');
+    rfBlock('futari')+rfBlock('higan')+rfBlock('nofilo');
 
   document.getElementById('tg').innerHTML=html;
 }
@@ -1511,19 +1516,44 @@ function rTips(){
 // ═══════════════════════════════════════════
 // CAST PANEL
 // ═══════════════════════════════════════════
+function cpToggleRefracUnit(uid){
+  const ms=REFRAC_MBR.filter(m=>m.u===uid);const allOn=ms.every(m=>cPres[m.ch]);ms.forEach(m=>{cPres[m.ch]=!allOn;});rCP();}
 function rCP(){
-  // Unit toggle buttons
+  const isRefrac=refracMode;
+  // Unit toggle buttons — ユニットモードはUORDER、リフラクモードはREFRAC_UNITS
   const ubtns=document.getElementById('cp-unit-btns');
-  ubtns.innerHTML=UORDER.map(uid=>{const u=UNITS.find(x=>x.id===uid);if(!u)return'';return`<button class="uc" style="border-color:${u.color}55;color:${u.color};" onclick="cpToggleUnit('${uid}')">${u.short}</button>`;}).join('');
-  document.getElementById('cpbody').innerHTML=UORDER.map(uid=>{
-    const u=UNITS.find(x=>x.id===uid);if(!u)return'';
-    const ms=MBR.filter(m=>m.u===uid);if(!ms.length)return'';
-    return`<div class="us"><div class="usn" style="color:${u.color}">${u.short}</div><div class="cg">${ms.map(m=>{const k=m.ch,pr=!!cPres[k],nm=cpMode==='cast'?m.ca:m.ch;return`<button class="cchip${pr?' p':''}" style="${pr?'background:'+m.c+';color:'+cc(m.c)+';':''}" onclick="tgCP('${k}','${m.c}',this)"><span class="ccdot" style="background:${pr?'rgba(0,0,0,.3)':m.c}"></span>${nm}</button>`;}).join('')}</div></div>`;
-  }).join('');
+  if(isRefrac){
+    ubtns.innerHTML=REFRAC_UNITS.map(u=>`<button class="uc" style="border-color:${u.color}55;color:${u.color};" onclick="cpToggleRefracUnit('${u.id}')">${u.add_short}</button>`).join('');
+  } else {
+    ubtns.innerHTML=UORDER.map(uid=>{const u=UNITS.find(x=>x.id===uid);if(!u)return'';return`<button class="uc" style="border-color:${u.color}55;color:${u.color};" onclick="cpToggleUnit('${uid}')">${u.short}</button>`;}).join('');
+  }
+  let bodyHTML='';
+  if(isRefrac){
+    bodyHTML=REFRAC_UNITS.map(u=>{
+      const ms=REFRAC_MBR.filter(m=>m.u===u.id);if(!ms.length)return'';
+      return`<div class="us"><div class="usn" style="color:${u.color}">${u.add_short}</div><div class="cg">${ms.map(m=>{const k=m.ch,pr=!!cPres[k],nm=cpMode==='cast'?m.ca:m.ch;return`<button class="cchip${pr?' p':''}" style="${pr?'background:'+m.c+';color:'+cc(m.c)+';':''}" onclick="tgCP('${k}','${m.c}',this)"><span class="ccdot" style="background:${pr?'rgba(0,0,0,.3)':m.c}"></span>${nm}</button>`;}).join('')}</div></div>`;
+    }).join('');
+  } else {
+    bodyHTML=UORDER.map(uid=>{
+      const u=UNITS.find(x=>x.id===uid);if(!u)return'';
+      const ms=MBR.filter(m=>m.u===uid);if(!ms.length)return'';
+      return`<div class="us"><div class="usn" style="color:${u.color}">${u.short}</div><div class="cg">${ms.map(m=>{const k=m.ch,pr=!!cPres[k],nm=cpMode==='cast'?m.ca:m.ch;return`<button class="cchip${pr?' p':''}" style="${pr?'background:'+m.c+';color:'+cc(m.c)+';':''}" onclick="tgCP('${k}','${m.c}',this)"><span class="ccdot" style="background:${pr?'rgba(0,0,0,.3)':m.c}"></span>${nm}</button>`;}).join('')}</div></div>`;
+    }).join('');
+  }
+  document.getElementById('cpbody').innerHTML=bodyHTML;
 }
 function tgCP(k,col,btn){cPres[k]=!cPres[k];btn.classList.toggle('p',cPres[k]);if(cPres[k]){btn.style.background=col;btn.style.color=cc(col);btn.querySelector('.ccdot').style.background='rgba(0,0,0,.3)';}else{btn.style.background='';btn.style.color='';btn.querySelector('.ccdot').style.background=col;}}
-function setCPM(m){cpMode=m;document.getElementById('cp-ch').classList.toggle('on',m==='chara');document.getElementById('cp-ca').classList.toggle('on',m==='cast');rCP();}
-function cpSelAll(v){MBR.filter(m=>m.u!=='other').forEach(m=>{cPres[m.ch]=v;});rCP();}
+function setCPM(m){
+  refracMode=(m==='refrac');
+  document.getElementById('cp-unit').classList.toggle('on',!refracMode);
+  document.getElementById('cp-refrac').classList.toggle('on',refracMode);
+  rCP();rSLI();
+}
+function cpSelAll(v){
+  if(refracMode){REFRAC_MBR.forEach(m=>{cPres[m.ch]=v;});}
+  else{MBR.filter(m=>m.u!=='other').forEach(m=>{cPres[m.ch]=v;});}
+  rCP();
+}
 function cpToggleUnit(uid){
   const ms=MBR.filter(m=>m.u===uid);const allOn=ms.every(m=>cPres[m.ch]);ms.forEach(m=>{cPres[m.ch]=!allOn;});rCP();}
 
@@ -1579,6 +1609,7 @@ function rSLI(){
     // setlist unit chips: UORDER + all + solo (no 'other' for setlist, no 'free')
     const disp=UORDER.filter(x=>x!=='other').concat(['all','solo']);
     const ucs=disp.map(uid=>{const u=UNITS.find(x=>x.id===uid);if(!u)return'';const sel=(s.units||[]).includes(uid);return`<button class="uc${sel?' on':''}" style="${sel?'background:'+u.color+'33;border-color:'+u.color+'88;color:'+u.color+';':''}" onclick="tgSU(${i},'${uid}',this)">${u.short}</button>`;}).join('');
+    const refracUcs=refracMode?REFRAC_UNITS.map(u=>{const sel=(s.units||[]).includes(u.id);return`<button class="uc${sel?' on':''}" style="${sel?'background:'+u.color+'33;border-color:'+u.color+'88;color:'+u.color+';':''}" onclick="tgSURF(${i},'${u.id}',this)">${u.short}</button>`;}).join(''):'';
     const otherBtn=`<button class="uc${(s.units||[]).includes('free')?' on':''}" onclick="tgSU(${i},'free',this)">OTHER</button>`;
     const hasSolo=(s.units||[]).includes('solo');
     const hasFree=(s.units||[]).includes('free');
@@ -1594,7 +1625,7 @@ function rSLI(){
     const freeIn=hasFree?`<input class="stxt free-inp" type="text" placeholder="出演者名" value="${s.freeU||''}" oninput="setSFU(${i},this.value)" style="min-width:70px;">`:'';
     const uSel=`<select class="ssel" onchange="setSK(${i},this.value)"><option value="orig"${s.unit==='orig'?' selected':''}>オリジナル</option><option value="shuf"${s.unit==='shuf'?' selected':''}>シャッフル</option></select>`;
     const mIn=isShuf?`<input class="stxt" type="text" placeholder="出演者名" value="${s.members||''}" oninput="setSM(${i},this.value)" style="min-width:70px;">`:'';
-    return`<div class="si"><span class="sin ${numCls}">${numStr}</span><div class="sinw"><span class="sinm">${s.name}</span><div class="sir2">${uSel}${isShuf?mIn:`<div class="ucw">${ucs}${otherBtn}${soloSel}${freeIn}</div>`}</div></div><div class="sict"><button class="eb${isE?' oe':''}" onclick="tgE(${i})">EN</button><button class="eb${isE2?' ow':''}" onclick="tgE2(${i})">W-EN</button><button class="btn btn-sm btn-g btn-d" onclick="rmSI(${i})">✕</button></div></div>`;
+    return`<div class="si"><span class="sin ${numCls}">${numStr}</span><div class="sinw"><span class="sinm">${s.name}</span><div class="sir2">${uSel}${isShuf?mIn:`<div class="ucw">${ucs}${refracUcs}${otherBtn}${soloSel}${freeIn}</div>`}</div></div><div class="sict"><button class="eb${isE?' oe':''}" onclick="tgE(${i})">EN</button><button class="eb${isE2?' ow':''}" onclick="tgE2(${i})">W-EN</button><button class="btn btn-sm btn-g btn-d" onclick="rmSI(${i})">✕</button></div></div>`;
   }).join('');
 }
 function tgSU(i,uid,btn){
@@ -1608,6 +1639,15 @@ function tgSU(i,uid,btn){
   // For solo and free: trigger full re-render to show/hide sub-inputs
   if(uid==='solo'||uid==='free'){rSLI();return;}
 }
+function tgSURF(i,uid,btn){
+  const s=eTabs[aTab].songs[i];if(!s)return;
+  if(!s.units)s.units=[];
+  const idx=s.units.indexOf(uid);
+  if(idx>=0)s.units.splice(idx,1);else s.units.push(uid);
+  const sel=s.units.includes(uid),u=rfUnit(uid);
+  btn.classList.toggle('on',sel);
+  if(u){btn.style.background=sel?u.color+'33':'';btn.style.borderColor=sel?u.color+'88':'';btn.style.color=sel?u.color:'';}
+}
 function setSK(i,v){const s=eTabs[aTab].songs[i];if(!s)return;s.unit=v;rSLI();}
 function setSM(i,v){const s=eTabs[aTab].songs[i];if(s)s.members=v;}
 function setSFU(i,v){const s=eTabs[aTab].songs[i];if(s)s.freeU=v;}
@@ -1620,7 +1660,9 @@ function rmSI(i){eTabs[aTab].songs.splice(i,1);rSLI();updSLW();}
 // ═══════════════════════════════════════════
 function clrF(){
   ['f-n','f-yy','f-mm','f-dd','f-eyy','f-emm','f-edd','f-th','f-tm','f-v','f-loc','f-tag','nti','bi'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  eTabs=[{id:'t'+Date.now(),name:'本編',songs:[]}];aTab=0;eId=null;ePM='cast';ePK='orig';cPres={};xrBU=[];eCostu={};
+  eTabs=[{id:'t'+Date.now(),name:'本編',songs:[]}];aTab=0;eId=null;ePM='cast';ePK='orig';cPres={};xrBU=[];eCostu={};refracMode=false;
+  const cpUnit=document.getElementById('cp-unit');if(cpUnit)cpUnit.classList.add('on');
+  const cpRef=document.getElementById('cp-refrac');if(cpRef)cpRef.classList.remove('on');
   setPM('cast');setPK('orig');
   const slw=document.getElementById('slw');if(slw)slw.style.display='none';
   document.getElementById('f-msg').textContent='';
