@@ -402,9 +402,8 @@ body.is-admin .admin-badge{display:flex;}
     <div class="ni" id="ni-xr" onclick="sw('xr')"><svg class="nico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="5" width="14" height="8" rx="2"/><circle cx="5.5" cy="9" r="1.5"/><path d="M10 9h3M10 11.5h2"/></svg>XR公演</div>
     <div class="ns">管理</div>
     <div class="ni" id="ni-att" onclick="sw('att')"><svg class="nico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2" width="14" height="12" rx="1.5"/><path d="M5 6h6M5 9h4M5 12h3"/></svg>出欠一覧</div>
-    <div class="ni" id="ni-stat" onclick="sw('stat')"><svg class="nico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 12V8h3v4H2zM6.5 12V5h3v7h-3zM11 12V2h3v10h-3z"/></svg>統計</div>
     <div class="ni admin-only" id="ni-lib" onclick="sw('lib')"><svg class="nico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 2h5v12H2zM9 2h5v12H9z"/></svg>楽曲を追加<span class="nbadge" id="b-lib">0</span></div>
-    <div class="ni admin-only" id="ni-sched" onclick="sw('sched')"><svg class="nico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="12" height="12" rx="1.5"/><path d="M5 1v2M11 1v2M2 6h12"/></svg>スケジュール<span class="nbadge" id="b-sched">0</span></div>
+    <div class="ni" id="ni-sched" onclick="sw('sched')"><svg class="nico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="12" height="12" rx="1.5"/><path d="M5 1v2M11 1v2M2 6h12"/></svg>スケジュール<span class="nbadge" id="b-sched">0</span></div>
     <!-- 公演を追加はトップバーボタンのみ -->
   </nav>
   <div class="sb-bot">
@@ -519,7 +518,7 @@ body.is-admin .admin-badge{display:flex;}
     <!-- SCHEDULE -->
     <div class="panel" id="panel-sched">
       <div class="metrics" id="sched-met"></div>
-      <div class="fcard">
+      <div class="fcard admin-only">
         <div class="fst">スケジュールを追加</div>
         <div class="fg">
           <div class="ff"><label>公演名 *</label><input id="sc-n" type="text" placeholder="例：ARIA TOUR 2025"></div>
@@ -850,11 +849,11 @@ function clMob(){document.getElementById('sb').classList.remove('mo');document.g
 // ═══════════════════════════════════════════
 // TAB SWITCHING
 // ═══════════════════════════════════════════
-const ATS=['songs','cons','cast','xr','att','stat','lib','sched','add','tips'];
-const PT={songs:'楽曲から検索',cons:'公演一覧',cast:'キャスト公演',xr:'XR公演',att:'出欠一覧',stat:'統計',lib:'楽曲を追加',sched:'スケジュール',add:'公演を追加',tips:'Tips'};
+const ATS=['songs','cons','cast','xr','att','lib','sched','add','tips'];
+const PT={songs:'楽曲から検索',cons:'公演一覧',cast:'キャスト公演',xr:'XR公演',att:'出欠一覧',lib:'楽曲を追加',sched:'スケジュール',add:'公演を追加',tips:'Tips'};
 function sw(t){
   // 管理人専用タブのガード
-  const adminTabs=['add','lib','sched'];
+  const adminTabs=['add','lib'];
   if(adminTabs.includes(t)&&!isAdmin){openAdminModal();return;}
   // warn if bulk textarea has unsaved content
   if(curTab==='add'&&t!=='add'){
@@ -877,7 +876,7 @@ function sw(t){
   }
   clMob();rCur();
 }
-function rCur(){if(curTab==='songs')rSongs();else if(curTab==='cons')rCons();else if(curTab==='cast')rPP('cast');else if(curTab==='xr')rPP('xr');else if(curTab==='att')rAtt();else if(curTab==='stat')rStat();else if(curTab==='lib')rLib();else if(curTab==='sched')rSched();else if(curTab==='tips')rTips();updB();}
+function rCur(){if(curTab==='songs')rSongs();else if(curTab==='cons')rCons();else if(curTab==='cast')rPP('cast');else if(curTab==='xr')rPP('xr');else if(curTab==='att')rAtt();else if(curTab==='lib')rLib();else if(curTab==='sched')rSched();else if(curTab==='tips')rTips();updB();}
 function updB(){document.getElementById('b-songs').textContent=Object.keys(bSM()).length;document.getElementById('b-cons').textContent=cons.length;document.getElementById('b-lib').textContent=lib.length;document.getElementById('b-sched').textContent=schs.length;}
 
 // ═══════════════════════════════════════════
@@ -1664,7 +1663,7 @@ function rSched(){
     if(d===0){cls='ct2';lb='今日';}else if(d<0){cls='cf';lb=Math.abs(d)+'日後';}
     // show "公演に追加" button for past/today events not yet in cons
     const alreadyAdded=cons.some(c=>c.fromSchedId===s.id);
-    const addBtn=(!alreadyAdded&&d>=0)?`<button class="btn btn-sm btn-a" onclick="schedToCon('${s.id}')" style="font-size:10px;margin-top:3px;">公演に追加</button>`:'';
+    const addBtn=(!alreadyAdded&&d>=0&&isAdmin)?`<button class="btn btn-sm btn-a" onclick="schedToCon('${s.id}')" style="font-size:10px;margin-top:3px;">公演に追加</button>`:'';
     if(alreadyAdded&&d>=0)lb+=' ✓';
     return`<div class="scrd"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:7px;"><div><div style="font-size:13px;font-weight:500;">${s.name}</div><div style="font-size:11px;color:var(--text3);margin-top:2px;">${s.venue||''}${s.tags?' ['+s.tags+']':''}</div>${addBtn}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;"><span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;">${s.date}</span><span class="db ${cls}">${lb}</span><button class="btn btn-sm btn-d admin-only" onclick="delSch('${s.id}')">削除</button></div></div></div>`;
   }
