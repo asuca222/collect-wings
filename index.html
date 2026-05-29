@@ -552,11 +552,6 @@ body.is-admin .admin-badge{display:flex;}
               <button class="ptb sc" id="pt-c" onclick="setPM('cast')">キャスト</button>
               <button class="ptb" id="pt-x" onclick="setPM('xr')">XR</button>
             </div>
-            <div class="fst">オリジナル / シャッフル</div>
-            <div class="pt-row" style="margin-bottom:0;">
-              <button class="ptb" id="pt-o" onclick="setPK('orig')">オリジナル</button>
-              <button class="ptb" id="pt-s" onclick="setPK('shuf')">シャッフル</button>
-            </div>
           </div>
 
           <div class="fcard">
@@ -693,12 +688,13 @@ const REFRAC_IDS=['cutie','fumage','sonic','desire','futari','higan'];
 // ═══════════════════════════════════════════
 const REFRAC_UNITS=[
   // id, name, short, color(仮) — 今後個別設定
-  {id:'cutie', name:"I'm a Cutie Finder",      short:'Cutie Finder',    color:'#e8607a'},
-  {id:'fumage',name:'Fumage',                   short:'Fumage',          color:'#7ec8c0'},
-  {id:'sonic', name:'Sonic Heart (and Signal)', short:'Sonic Heart',     color:'#3db8f0'},
-  {id:'desire',name:'∑ Desire',                 short:'∑ Desire',        color:'#9b6bcc'},
-  {id:'futari',name:'ザ・ふたりトラベラー',      short:'ふたりトラベラー',color:'#f7b731'},
-  {id:'higan', name:'彼岸流',                   short:'彼岸流',          color:'#6bbf7e'},
+  {id:'cutie', name:"I'm a Cutie Finder",      short:'Aikyu',       color:'#e8607a'},
+  {id:'fumage',name:'Fumage',                   short:'Fumage',     color:'#7ec8c0'},
+  {id:'sonic',name:'Sonic Heart (and Signal)', short:'Soniha',    color:'#3db8f0'},
+  {id:'desire',name:'∑ Desire',                 short:'Siguma',     color:'#9b6bcc'},
+  {id:'futari',name:'ザ・ふたりトラベラー',      short:'Tarira',      color:'#f7b731'},
+  {id:'higan', name:'彼岸流',                   short:'Higan',       color:'#6bbf7e'},
+  {id:'nofiro',name:'No 1 feel alone',         short:'Nofiro',       color:'#3db8f0'},
 ];
 const REFRAC_MBR=[
   // u=refrac unit id, ch=キャラ名, ca=キャスト名, c=カラー(仮)
@@ -726,6 +722,10 @@ const REFRAC_MBR=[
   {u:'higan', ch:'有栖川夏葉', ca:'涼本あきほ', c:'#90e667'},
   {u:'higan', ch:'桑山千雪',   ca:'芝崎典子',   c:'#fafafa'},
   {u:'higan', ch:'和泉愛依',   ca:'北原沙弥香', c:'#ff00ff'},
+  {u:'hofiro',ch:'杜野凛世',   ca:'丸岡和佳奈', c:'#89c3eb'},
+  {u:'nofiro',ch:'大崎甘奈',   ca:'黒木ほの香', c:'#f54275'},
+  {u:'nofiro',ch:'福丸小糸',   ca:'田嶌紗蘭',   c:'#7967c3'},
+  {u:'nofiro',ch:'三峰結華',   ca:'希水しお',   c:'#3b91c4'},
 ];
 // REFRAC検索ヘルパー（UNITS/MBRとは独立）
 function rfUnit(id){return REFRAC_UNITS.find(u=>u.id===id)||null;}
@@ -747,7 +747,7 @@ const UNITS=[
   {id:'comet',name:'コメティック',short:'コメティック',color:'#333333'},
   {id:'other',name:'その他',short:'その他',color:'#ffffff'},
   {id:'all',name:'全員',short:'全員',color:'#8dbbff'},
-  {id:'shinyc',name:'シャイニーカラーズ',short:'シャニP',color:'#8dbbff'},
+  {id:'shinyc',name:'シャイニーカラーズ',short:'シャニ',color:'#8dbbff'},
   {id:'solo',name:'ソロ',short:'ソロ',color:'#888890'},
   {id:'free',name:'OTHER',short:'OTHER',color:'#888890'},
 ];
