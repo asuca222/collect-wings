@@ -409,7 +409,7 @@ body.is-admin .admin-badge{display:flex;}
   <div class="sb-bot">
     <button class="sbbtn" onclick="sw('tips')"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.5"/><path d="M8 7v5M8 5v.5"/></svg>Tips</button>
     <button class="sbbtn" id="cm-btn" onclick="tgCast()"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg><span id="cm-lbl">キャスト名表示</span></button>
-    <button class="tbtn admin-only" onclick="openSettings()" style="margin-bottom:2px;"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.22 3.22l1.42 1.42M11.36 11.36l1.42 1.42M3.22 12.78l1.42-1.42M11.36 4.64l1.42-1.42"/></svg>⚙ Settings</button>
+    <button class="tbtn" onclick="openSettings()" style="margin-bottom:2px;"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.22 3.22l1.42 1.42M11.36 11.36l1.42 1.42M3.22 12.78l1.42-1.42M11.36 4.64l1.42-1.42"/></svg>⚙ Settings</button>
     <button class="tbtn" id="adm-login-btn" onclick="openAdminModal()" style="margin-bottom:2px;"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="8" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg><span id="adm-btn-lbl">管理人ログイン</span></button>
     <button class="tbtn" onclick="tgTheme()"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="4"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M3.5 12.5l1.4-1.4M11.1 4.9l1.4-1.4"/></svg><span id="tl">ライトモード</span></button>
     <div class="leg">
@@ -552,6 +552,11 @@ body.is-admin .admin-badge{display:flex;}
               <button class="ptb sc" id="pt-c" onclick="setPM('cast')">キャスト</button>
               <button class="ptb" id="pt-x" onclick="setPM('xr')">XR</button>
             </div>
+            <div class="fst">オリジナル / シャッフル</div>
+            <div class="pt-row" style="margin-bottom:0;">
+              <button class="ptb" id="pt-o" onclick="setPK('orig')">オリジナル</button>
+              <button class="ptb" id="pt-s" onclick="setPK('shuf')">シャッフル</button>
+            </div>
           </div>
 
           <div class="fcard">
@@ -592,7 +597,7 @@ body.is-admin .admin-badge{display:flex;}
         <!-- Right: cast panel -->
         <div class="cpanel" id="cppanel">
           <div class="cptitle">出演</div>
-          <div class="cmt"><button class="cmtb on" id="cp-ch" onclick="setCPM('chara')">キャラ</button><button class="cmtb" id="cp-ca" onclick="setCPM('cast')">キャスト</button></div>
+          <div class="cmt"><button class="cmtb on" id="cp-ch" onclick="setCPM('chara')">キャラ</button><button class="cmtb" id="cp-rf" onclick="setCPM('refrac')">リフラク</button></div>
           <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
             <button class="btn btn-sm" onclick="cpSelAll(true)">全選択ON</button>
             <button class="btn btn-sm" onclick="cpSelAll(false)">全選択OFF</button>
@@ -680,7 +685,7 @@ body.is-admin .admin-badge{display:flex;}
 // ═══════════════════════════════════════════
 const UORDER=['illumi','antika','hocus','alst','stray','noctil','seize','comet'];
 // クロス・期間限定ユニット（出欠一覧には含めない）
-const REFRAC_IDS=['cutie','fumage','sonic','desire','futari','higan','no1'];
+const REFRAC_IDS=['cutie','fumage','sonic','desire','futari','higan'];
 
 // ═══════════════════════════════════════════
 // REFRAC — 既存ユニットと完全に切り離された独立実装
@@ -694,7 +699,7 @@ const REFRAC_UNITS=[
   {id:'desire',name:'∑ Desire',                 short:'∑ Desire',        color:'#9b6bcc'},
   {id:'futari',name:'ザ・ふたりトラベラー',      short:'ふたりトラベラー',color:'#f7b731'},
   {id:'higan', name:'彼岸流',                   short:'彼岸流',          color:'#6bbf7e'},
-  {id:'no1',   name:'No 1 feel alone',          short:'No 1 feel alone', color:'#7ab8f0'},
+  {id:'no1',   name:'No 1 feel alone',           short:'No 1 feel alone', color:'#8aa8d0'},
 ];
 const REFRAC_MBR=[
   // u=refrac unit id, ch=キャラ名, ca=キャスト名, c=カラー(仮)
@@ -723,9 +728,9 @@ const REFRAC_MBR=[
   {u:'higan', ch:'桑山千雪',   ca:'芝崎典子',   c:'#fafafa'},
   {u:'higan', ch:'和泉愛依',   ca:'北原沙弥香', c:'#ff00ff'},
   {u:'no1',   ch:'杜野凛世',   ca:'丸岡和佳奈', c:'#89c3eb'},
+  {u:'no1',   ch:'三峰結華',   ca:'希水しお',   c:'#3b91c4'},
   {u:'no1',   ch:'大崎甘奈',   ca:'黒木ほの香', c:'#f54275'},
   {u:'no1',   ch:'福丸小糸',   ca:'田嶌紗蘭',   c:'#7967c3'},
-  {u:'no1',   ch:'三峰結華',   ca:'希水しお',   c:'#3b91c4'},
 ];
 // REFRAC検索ヘルパー（UNITS/MBRとは独立）
 function rfUnit(id){return REFRAC_UNITS.find(u=>u.id===id)||null;}
@@ -1741,20 +1746,35 @@ function rTips(){
 // CAST PANEL
 // ═══════════════════════════════════════════
 function rCP(){
-  // Unit toggle buttons
   const ubtns=document.getElementById('cp-unit-btns');
-  ubtns.innerHTML=UORDER.map(uid=>{const u=UNITS.find(x=>x.id===uid);if(!u)return'';return`<button class="uc" style="border-color:${u.color}55;color:${u.color};" onclick="cpToggleUnit('${uid}')">${u.short}</button>`;}).join('');
-  document.getElementById('cpbody').innerHTML=UORDER.map(uid=>{
-    const u=UNITS.find(x=>x.id===uid);if(!u)return'';
-    const ms=MBR.filter(m=>m.u===uid);if(!ms.length)return'';
-    return`<div class="us"><div class="usn" style="color:${u.color}">${u.short}</div><div class="cg">${ms.map(m=>{const k=m.ch,pr=!!cPres[k],nm=cpMode==='cast'?m.ca:m.ch;return`<button class="cchip${pr?' p':''}" style="${pr?'background:'+m.c+';color:'+cc(m.c)+';':''}" onclick="tgCP('${k}','${m.c}',this)"><span class="ccdot" style="background:${pr?'rgba(0,0,0,.3)':m.c}"></span>${nm}</button>`;}).join('')}</div></div>`;
-  }).join('');
+  if(cpMode==='refrac'){
+    // リフラクモード: REFRAC_UNITSのユニット一括ボタン
+    ubtns.innerHTML=REFRAC_UNITS.map(u=>`<button class="uc" style="border-color:${u.color}55;color:${u.color};" onclick="cpToggleUnitRF('${u.id}')">${u.short}</button>`).join('');
+    document.getElementById('cpbody').innerHTML=REFRAC_UNITS.map(u=>{
+      const ms=REFRAC_MBR.filter(m=>m.u===u.id);if(!ms.length)return'';
+      return`<div class="us"><div class="usn" style="color:${u.color}">${u.short}</div><div class="cg">${ms.map(m=>{const k=m.ch,pr=!!cPres[k],nm=m.ch;return`<button class="cchip${pr?' p':''}" style="${pr?'background:'+m.c+';color:'+cc(m.c)+';':''}" onclick="tgCP('${k}','${m.c}',this)"><span class="ccdot" style="background:${pr?'rgba(0,0,0,.3)':m.c}"></span>${nm}</button>`;}).join('')}</div></div>`;
+    }).join('');
+  } else {
+    // キャラモード: 通常ユニット
+    ubtns.innerHTML=UORDER.map(uid=>{const u=UNITS.find(x=>x.id===uid);if(!u)return'';return`<button class="uc" style="border-color:${u.color}55;color:${u.color};" onclick="cpToggleUnit('${uid}')">${u.short}</button>`;}).join('');
+    document.getElementById('cpbody').innerHTML=UORDER.map(uid=>{
+      const u=UNITS.find(x=>x.id===uid);if(!u)return'';
+      const ms=MBR.filter(m=>m.u===uid);if(!ms.length)return'';
+      return`<div class="us"><div class="usn" style="color:${u.color}">${u.short}</div><div class="cg">${ms.map(m=>{const k=m.ch,pr=!!cPres[k],nm=m.ch;return`<button class="cchip${pr?' p':''}" style="${pr?'background:'+m.c+';color:'+cc(m.c)+';':''}" onclick="tgCP('${k}','${m.c}',this)"><span class="ccdot" style="background:${pr?'rgba(0,0,0,.3)':m.c}"></span>${nm}</button>`;}).join('')}</div></div>`;
+    }).join('');
+  }
 }
 function tgCP(k,col,btn){cPres[k]=!cPres[k];btn.classList.toggle('p',cPres[k]);if(cPres[k]){btn.style.background=col;btn.style.color=cc(col);btn.querySelector('.ccdot').style.background='rgba(0,0,0,.3)';}else{btn.style.background='';btn.style.color='';btn.querySelector('.ccdot').style.background=col;}}
-function setCPM(m){cpMode=m;document.getElementById('cp-ch').classList.toggle('on',m==='chara');document.getElementById('cp-ca').classList.toggle('on',m==='cast');rCP();}
-function cpSelAll(v){MBR.filter(m=>m.u!=='other').forEach(m=>{cPres[m.ch]=v;});rCP();}
+function setCPM(m){cpMode=m;document.getElementById('cp-ch').classList.toggle('on',m==='chara');document.getElementById('cp-rf').classList.toggle('on',m==='refrac');rCP();}
+function cpSelAll(v){
+  if(cpMode==='refrac'){REFRAC_MBR.forEach(m=>{cPres[m.ch]=v;});}
+  else{MBR.filter(m=>m.u!=='other').forEach(m=>{cPres[m.ch]=v;});}
+  rCP();
+}
 function cpToggleUnit(uid){
   const ms=MBR.filter(m=>m.u===uid);const allOn=ms.every(m=>cPres[m.ch]);ms.forEach(m=>{cPres[m.ch]=!allOn;});rCP();}
+function cpToggleUnitRF(uid){
+  const ms=REFRAC_MBR.filter(m=>m.u===uid);const allOn=ms.every(m=>cPres[m.ch]);ms.forEach(m=>{cPres[m.ch]=!allOn;});rCP();}
 
 // ═══════════════════════════════════════════
 // FORM: PERF TYPE
@@ -1849,7 +1869,9 @@ function rmSI(i){eTabs[aTab].songs.splice(i,1);rSLI();updSLW();}
 // ═══════════════════════════════════════════
 function clrF(){
   ['f-n','f-yy','f-mm','f-dd','f-eyy','f-emm','f-edd','f-th','f-tm','f-v','f-loc','f-tag','nti','bi'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  eTabs=[{id:'t'+Date.now(),name:'本編',songs:[]}];aTab=0;eId=null;ePM='cast';ePK='orig';cPres={};xrBU=[];eCostu={};
+  eTabs=[{id:'t'+Date.now(),name:'本編',songs:[]}];aTab=0;eId=null;ePM='cast';ePK='orig';cPres={};xrBU=[];eCostu={};cpMode='chara';
+  const cpch=document.getElementById('cp-ch');if(cpch)cpch.classList.add('on');
+  const cprf=document.getElementById('cp-rf');if(cprf)cprf.classList.remove('on');
   setPM('cast');setPK('orig');
   const slw=document.getElementById('slw');if(slw)slw.style.display='none';
   document.getElementById('f-msg').textContent='';
@@ -2007,14 +2029,14 @@ function delCon(id){
 // ★ FIREBASE 設定（ここを書き換えてください）
 // ═══════════════════════════════════════════
 const FB_CONFIG={
-  apiKey:           "AIzaSyCRhF2zTCpxjCz6oykjBs3kfP33elg236o",
-  authDomain:       "collect-wings-4554a.firebaseapp.com",
-  databaseURL:      "https://collect-wings-4554a-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:        "collect-wings-4554a",
-  storageBucket:    "collect-wings-4554a.firebasestorage.app",
-  messagingSenderId:"742463033970",
-  appId:            "1:742463033970:web:458d69e71467921083e8eb",
+  apiKey:           "YOUR_API_KEY",
+  authDomain:       "YOUR_PROJECT.firebaseapp.com",
+  databaseURL:      "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId:        "YOUR_PROJECT",
 };
+// ★ 管理人パスワードの SHA-256 ハッシュ
+// 生成方法: ブラウザのコンソールで以下を実行してコピー
+//   crypto.subtle.digest('SHA-256',new TextEncoder().encode('あなたのパスワード')).then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
 const ADMIN_HASH="5671e886e0787eea1688159e456afc4b84fbd157992ead0a14e6d45d6f1f2781";
 
 // ═══════════════════════════════════════════
