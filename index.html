@@ -955,12 +955,11 @@ function libLook(name){const k=n(name);return lib.find(e=>n(e.name)===k);}
 // CAST SUMMARY (expanded cards)
 // ═══════════════════════════════════════════
 function cSum(c){
-  // Returns array of {name, color, unitColor}
-  const res=[];const seen=new Set();
-  Object.entries(c.castPresent||{}).forEach(([ch,v])=>{
-    if(!v)return;
-    const m=MBR.find(x=>x.ch===ch);
-    if(m&&!seen.has(ch)){seen.add(ch);res.push({name:mname(m),color:m.c,unitColor:UNITS.find(x=>x.id===m.u)?.color||'#888'});}
+  // Returns array sorted by MBR definition order (= UORDER unit order)
+  const cp=c.castPresent||{};
+  const res=[];
+  MBR.forEach(m=>{
+    if(cp[m.ch]){res.push({name:mname(m),color:m.c,unitColor:UNITS.find(x=>x.id===m.u)?.color||'#888'});}
   });
   if(!res.length){// fallback from setlist unit labels
     const unitsSeen=new Set();
