@@ -1266,8 +1266,27 @@ function rSongs(){
       return`<span class="ctag" onclick="gCon('${s._cid}')">${hl(dispName,q)}${tagBadges}${tn}${mn}<span class="ctd">${s._cd}</span><span class="db ${dbc(d2)}" style="font-size:9px;padding:1px 4px;">${dbl(d2)}</span></span>`;
     }).join('');
     const unperfNote=sorted.length===0?`<span style="font-size:10px;color:var(--text3);font-style:italic;">未披露</span>`:'';
-    return`<div class="rs"><div class="rst">${hl(e.name,q)}${unitDisp.length?`<span class="rs-u">${unitDisp.join('・')}</span>`:''}${sorted.length?`<span class="rs-c">${sorted.length}公演</span>`:unperfNote}${d1!==null?`<span class="db ${dbc(d1)}" style="font-size:9px;">${dbl(d1)}</span>`:''}</div><div class="tlist">${tags}</div></div>`;
+    return`<div class="rs"><div class="rst">${hl(e.name,q)}${unitDisp.length?`<span class="rs-u">${unitDisp.join('・')}</span>`:''}${sorted.length?`<span class="rs-c">${sorted.length}公演</span>`:unperfNote}${d1!==null?`<span class="db ${dbc(d1)}" style="font-size:9px;">${dbl(d1)}</span>`:''}<button class="btn btn-sm btn-d admin-only" style="margin-left:auto;" data-key="${_escA(k)}" onclick="delSongAll(this.dataset.key)">削除</button></div><div class="tlist">${tags}</div></div>`;
   }).join('');
+}
+function delSongAll(k){
+  if(!isAdmin)return;
+  const hit=c=>(c.tabs||[]).some(t=>(t.songs||[]).some(s=>n(s.name)===k));
+  const affected=cons.filter(hit);
+  const libItem=lib.find(e=>n(e.name)===k);
+  let nm=libItem?libItem.name:'';
+  if(!nm){for(const c of affected){for(const t of (c.tabs||[])){const f=(t.songs||[]).find(s=>n(s.name)===k);if(f){nm=f.name;break;}}if(nm)break;}}
+  let msg=`「${nm}」を削除しますか？`;
+  if(affected.length)msg+=`\n\n${affected.length}件の公演のセットリストからもこの曲が削除されます（元に戻せません）。`;
+  if(!confirm(msg))return;
+  if(libItem)_pushHist('lib',{...libItem});
+  if(affected.length){
+    cons.forEach(c=>{(c.tabs||[]).forEach(t=>{t.songs=(t.songs||[]).filter(s=>n(s.name)!==k);});});
+    saveC();
+  }
+  lib=lib.filter(e=>n(e.name)!==k);
+  saveL();
+  updB();rSongs();
 }
 function gSong(name){sw('songs');document.getElementById('sq').value=name;rSongs();}
 function gCon(cid){sw('cons');document.getElementById('cq').value='';setCF('all');rCons();setTimeout(()=>{const e=document.getElementById('cc-'+cid);if(e){e.classList.add('exp');const ptw=document.getElementById('cc-'+cid+'-ptw');if(ptw)ptw.style.display='block';const ccast=document.getElementById('cc-'+cid+'-ccast');if(ccast){const c=cons.find(x=>x.id===cid);if(c){const sm=cSum(c);ccast.style.display=sm.length?'flex':'none';ccast.innerHTML=sm.map(m=>`<span class="ccast-chip" style="border-bottom-color:${m.unitColor};">${m.name}</span>`).join('');}}e.scrollIntoView({behavior:'smooth',block:'start'});
@@ -1859,7 +1878,7 @@ function tgSU(i,uid,btn){
   // For solo and free: trigger full re-render to show/hide sub-inputs
   if(uid==='solo'||uid==='free'){rSLI();return;}
 }
-function setSN(i,v){const s=eTabs[aTab].songs[i];if(s)s.name=v;}
+function setSN(i,v){const s=eTabs[aTab].songs[i];if(!s)return;if(s._orig===undefined)s._orig=s.name;s.name=v;}
 function _escA(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function setSK(i,v){const s=eTabs[aTab].songs[i];if(!s)return;s.unit=v;rSLI();}
 function setSM(i,v){const s=eTabs[aTab].songs[i];if(s)s.members=v;}
@@ -1911,11 +1930,36 @@ function saveCon(){
     perfMode:ePM,perfKind:ePK,
     castPresent:{...cPres},
     costumes:{...eCostu},
-    tabs:eTabs.map(t=>({...t,songs:t.songs.map(s=>({...s}))})),
+    tabs:eTabs.map(t=>({...t,songs:t.songs.map(s=>{const o={...s};delete o._orig;o.name=(o.name||'').trim();return o;})})),
     fromSchedId,
   };
   if(eId){const idx=cons.findIndex(c=>c.id===eId);if(idx>=0){con.id=eId;cons[idx]=con;}else cons.push(con);}
   else cons.push(con);
+  // 曲名を修正した場合: 旧表記を他公演・ライブラリからも置き換える
+  (function(){
+    const seen=new Set(),ren=[];
+    eTabs.forEach(t=>(t.songs||[]).forEach(s=>{
+      if(s._orig===undefined)return;
+      const nw=(s.name||'').trim(),od=s._orig;
+      if(!nw||od===nw||seen.has(n(od)))return;
+      seen.add(n(od));ren.push([od,nw]);
+    }));
+    ren.forEach(([od,nw])=>{
+      const ok=n(od);
+      const has=c=>(c.tabs||[]).some(t=>(t.songs||[]).some(x=>n(x.name)===ok));
+      const others=cons.filter(c=>c.id!==con.id&&has(c));
+      if(others.length&&confirm(`他の${others.length}件の公演にも「${od}」があります。\nすべて「${nw}」に統一しますか？`)){
+        others.forEach(c=>(c.tabs||[]).forEach(t=>(t.songs||[]).forEach(x=>{if(n(x.name)===ok)x.name=nw;})));
+      }
+      if(!cons.some(has)){
+        const li=lib.findIndex(e=>n(e.name)===ok);
+        if(li>=0){
+          if(lib.some((e,j)=>j!==li&&n(e.name)===n(nw)))lib.splice(li,1);
+          else lib[li].name=nw;
+        }
+      }
+    });
+  })();
   // 2-1: 新規楽曲を自動でライブラリに登録
   con.tabs.forEach(tab=>(tab.songs||[]).forEach(s=>{
     if(!s.name)return;
