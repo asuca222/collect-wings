@@ -449,6 +449,11 @@ body.is-admin .admin-badge{display:flex;}
         <button class="fc" id="sf-orig" onclick="setSF('orig')">オリジナルのみ</button>
         <button class="fc" id="sf-shuf" onclick="setSF('shuf')">シャッフルのみ</button>
       </div>
+      <div class="fr">
+        <button class="fc on" id="pf-all" onclick="setPF('all')">すべて</button>
+        <button class="fc" id="pf-xr" onclick="setPF('xr')">XRのみ</button>
+        <button class="fc" id="pf-cast" onclick="setPF('cast')">キャストのみ</button>
+      </div>
       <div class="srow">
         <span class="slbl">SORT:</span>
         <button class="sb2 on" id="so-n" onclick="setSS('n')">曲名</button>
@@ -816,7 +821,7 @@ function mgS(s){let unit='orig';if(s.unit==='shuf'||s.unit==='shuffle'||s.isMain
 let eId=null,ePM='cast',ePK='orig';
 let eTabs=[],aTab=0;
 let cPres={},cpMode='chara',xrBU=[],eCostu={};
-let sF='all',cF='all',aF='all',sS='n',sSDir=1,showCast=false,showUnperf=false,libUSel=[];
+let sF='all',pF='all',cF='all',aF='all',sS='n',sSDir=1,showCast=false,showUnperf=false,libUSel=[];
 // sSDir: 1=default(desc for date/count, unit-order for name), -1=reversed
 let curTab='songs';
 let bulkDirty=false; // true when bulk textarea has content not yet imported
@@ -891,6 +896,7 @@ function updB(){document.getElementById('b-songs').textContent=Object.keys(bSM()
 // FILTERS
 // ═══════════════════════════════════════════
 function setSF(f){sF=f;['all','orig','shuf'].forEach(x=>document.getElementById('sf-'+x).classList.toggle('on',x===f));rSongs();}
+function setPF(f){pF=f;['all','xr','cast'].forEach(x=>document.getElementById('pf-'+x).classList.toggle('on',x===f));rSongs();}
 function setCF(f){cF=f;['all','cast','xr'].forEach(x=>document.getElementById('cf-'+x).classList.toggle('on',x===f));rCons();}
 function setAF(f){aF=f;['all','anniv'].forEach(x=>document.getElementById('af-'+x).classList.toggle('on',x===f));rAtt();}
 function setSS(s){
@@ -1152,6 +1158,7 @@ function rSongs(){
   ['n','l','c'].forEach(x=>{const el=document.getElementById('so-'+x);if(!el)return;const active=x===sS;el.classList.toggle('on',active);el.textContent=ssLabels[x]+(active?(sSDir===1?' ↓':' ↑'):'');});
   const q=document.getElementById('sq').value.trim();
   const m=bSM();
+  if(pF!=='all'){Object.keys(m).forEach(k=>{m[k].entries=m[k].entries.filter(s=>s._pm===pF);if(!m[k].entries.length)delete m[k];});}
   let la=null;cons.forEach(c=>{if(!la||c.date>la)la=c.date;});
   const da=dd(la);
   const up=schs.filter(s=>{const d=new Date(s.date);d.setHours(0,0,0,0);return d>=tod();}).sort((a,b)=>a.date.localeCompare(b.date));
@@ -1164,7 +1171,7 @@ function rSongs(){
   // build keys: setlist songs + all library-registered songs (always shown)
   let keys=[...Object.keys(m)];
   const perfNames=new Set(keys.map(k=>m[k].name.toLowerCase()));
-  lib.forEach(e=>{if(!perfNames.has(e.name.toLowerCase())){const k2=n(e.name);if(!m[k2]){m[k2]={name:e.name,entries:[]};keys.push(k2);}}});
+  lib.forEach(e=>{if(pF==='all'&&!perfNames.has(e.name.toLowerCase())){const k2=n(e.name);if(!m[k2]){m[k2]={name:e.name,entries:[]};keys.push(k2);}}});
   if(q)keys=keys.filter(k=>fz(m[k].name,q)||m[k].entries.some(s=>{const lb=sulabel(s);return lb&&fz(lb,q);}));
   if(sF==='orig')keys=keys.filter(k=>m[k].entries.some(s=>s.unit==='orig'));
   if(sF==='shuf')keys=keys.filter(k=>m[k].entries.every(s=>s.unit==='shuf'));
